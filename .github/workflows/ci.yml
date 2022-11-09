@@ -166,20 +166,5 @@ jobs:
           nimble --version
           nimble install_pinned
 
-      - name: Run test native
-        run: nimble testnative
-
-      - name: Run test pubsub
-        run: nimble testpubsub
-
-      - name: Run test daemon
-        run: nimble testdaemon
-
-      - name: Run test interop
-        run: nimble testinterop
-
-      - name: Run test filter
-        run: nimble testfilter
-
-      - name: Run test examples
-        run: nimble examples_build
+      - name: Run test parallels
+        run: nimble test_parallel
