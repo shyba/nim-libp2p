@@ -45,7 +45,7 @@ jobs:
 
     name: '${{ matrix.target.os }}-${{ matrix.target.cpu }} (Nim ${{ matrix.branch }})'
     runs-on: ${{ matrix.builder }}
-    continue-on-error: ${{ matrix.branch == 'version-1-6' || matrix.branch == 'devel' }}
+    continue-on-error: ${{ matrix.branch == 'devel' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -160,9 +160,26 @@ jobs:
         run: |
           V=1 bash scripts/build_p2pd.sh p2pdCache 124530a3
 
-      - name: Run tests
+      - name: Install dependencies
         run: |
           nim --version
           nimble --version
           nimble install_pinned
-          nimble test
+
+      - name: Run test native
+        run: nimble testnative
+
+      - name: Run test pubsub
+        run: nimble testpubsub
+
+      - name: Run test daemon
+        run: nimble testdaemon
+
+      - name: Run test interop
+        run: nimble testinterop
+
+      - name: Run test filter
+        run: nimble testfilter
+
+      - name: Run test examples
+        run: nimble examples_build
