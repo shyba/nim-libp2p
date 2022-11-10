@@ -166,5 +166,5 @@ jobs:
           nimble --version
           nimble install_pinned
 
-      - name: Run test parallels
-        run: nimble test_parallel
+      - name: Run test all
+        run: nimble test_all

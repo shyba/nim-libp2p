@@ -93,6 +93,8 @@ task test_parallel, "Runs the test suite in parallel":
     ./tools/para "nimble testnative" "nimble testpubsub" "nimble testdaemon" "nimble testinterop" "nimble testfilter"
   """
 
+task test_all, "Runs all the test (except gossipsub & filter hehe)":
+  runTest("testall")
 
 task website, "Build the website":
   tutorialToMd("examples/tutorial_1_connect.nim")
