@@ -167,4 +167,4 @@ jobs:
           nimble install_pinned
 
       - name: Run test all
-        run: nimble test_all
+        run: nimble test_parallel

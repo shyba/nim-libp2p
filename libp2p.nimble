@@ -87,14 +87,15 @@ task test_slim, "Runs the (slimmed down) test suite":
   exec "nimble testfilter"
   exec "nimble examples_build"
 
+task test_all, "Runs all the test (except gossipsub & filter hehe)":
+  runTest("testall")
+
 task test_parallel, "Runs the test suite in parallel":
   exec "nim c ./tools/para"
   exec """
-    ./tools/para "nimble testnative" "nimble testpubsub" "nimble testdaemon" "nimble testinterop" "nimble testfilter"
+    ./tools/para "nimble test_all" "nimble testpubsub" "sleep 60; nimble testfilter" "nimble examples_build"
   """
 
-task test_all, "Runs all the test (except gossipsub & filter hehe)":
-  runTest("testall")
 
 task website, "Build the website":
   tutorialToMd("examples/tutorial_1_connect.nim")
