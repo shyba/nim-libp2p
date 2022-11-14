@@ -577,13 +577,13 @@ method publish*(g: GossipSub,
 proc maintainDirectPeer(g: GossipSub, id: PeerId, addrs: seq[MultiAddress]) {.async.} =
   let peer = g.peers.getOrDefault(id)
   if isNil(peer):
-    trace "Attempting to dial a direct peer", peer = id
+    debug "Attempting to dial a direct peer", peer = id
     try:
       await g.switch.connect(id, addrs)
       # populate the peer after it's connected
       discard g.getOrCreatePeer(id, g.codecs)
     except CancelledError as exc:
-      trace "Direct peer dial canceled"
+      debug "Direct peer dial canceled"
       raise exc
     except CatchableError as exc:
       debug "Direct peer error dialing", msg = exc.msg

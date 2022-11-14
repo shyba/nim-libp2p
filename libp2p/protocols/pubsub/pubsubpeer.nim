@@ -121,10 +121,10 @@ proc handle*(p: PubSubPeer, conn: Connection) {.async.} =
   try:
     try:
       while not conn.atEof:
-        trace "waiting for data", conn, peer = p, closed = conn.closed
+        debug "waiting for data", conn, peer = p, closed = conn.closed
 
         var data = await conn.readLp(p.maxMessageSize)
-        trace "read data from peer",
+        debug "read data from peer",
           conn, peer = p, closed = conn.closed,
           data = data.shortLog
 
@@ -137,7 +137,7 @@ proc handle*(p: PubSubPeer, conn: Connection) {.async.} =
             err = rmsg.error()
           break
 
-        trace "decoded msg from peer",
+        debug "decoded msg from peer",
           conn, peer = p, closed = conn.closed,
           msg = rmsg.get().shortLog
         # trigger hooks
@@ -150,14 +150,17 @@ proc handle*(p: PubSubPeer, conn: Connection) {.async.} =
               libp2p_pubsub_received_messages.inc(labelValues = [$p.peerId, t])
 
         await p.handler(p, rmsg.get())
+      debug "eof in pubsubpeer.handle", conn, peer = p, closed = conn.closed
     finally:
+      debug "closing in pubsubpeer.handle", conn, peer = p, closed = conn.closed
       await conn.close()
   except CancelledError:
     # This is top-level procedure which will work as separate task, so it
     # do not need to propagate CancelledError.
-    trace "Unexpected cancellation in PubSubPeer.handle"
+    debug "Unexpected cancellation in PubSubPeer.handle",
+      conn, peer = p, closed = conn.closed, exc = exc.msg
   except CatchableError as exc:
-    trace "Exception occurred in PubSubPeer.handle",
+    debug "Exception occurred in PubSubPeer.handle",
       conn, peer = p, closed = conn.closed, exc = exc.msg
   finally:
     debug "exiting pubsub read loop",
@@ -165,15 +168,17 @@ proc handle*(p: PubSubPeer, conn: Connection) {.async.} =
 
 proc connectOnce(p: PubSubPeer): Future[void] {.async.} =
   try:
+    debug "connectOnce", p
     let newConn = await p.getConn()
     if newConn.isNil:
+      debug "Cannot establish send connection"
       raise (ref LPError)(msg: "Cannot establish send connection")
 
     # When the send channel goes up, subscriptions need to be sent to the
     # remote peer - if we had multiple channels up and one goes down, all
     # stop working so we make an effort to only keep a single channel alive
 
-    trace "Get new send connection", p, newConn
+    debug "Get new send connection", p, newConn
     p.sendConn = newConn
     p.address = some(p.sendConn.observedAddr)
 
@@ -183,8 +188,9 @@ proc connectOnce(p: PubSubPeer): Future[void] {.async.} =
     await handle(p, newConn)
   finally:
     if p.sendConn != nil:
-      trace "Removing send connection", p, conn = p.sendConn
+      debug "Removing send connection", p, conn = p.sendConn
       await p.sendConn.close()
+      debug "Done removing send connection", p, conn = p.sendConn
       p.sendConn = nil
 
     try:
@@ -198,6 +204,7 @@ proc connectOnce(p: PubSubPeer): Future[void] {.async.} =
     # don't cleanup p.address else we leak some gossip stat table
 
 proc connectImpl(p: PubSubPeer) {.async.} =
+  debug "connectImpl ^", p
   try:
     # Keep trying to establish a connection while it's possible to do so - the
     # send connection might get disconnected due to a timeout or an unrelated
@@ -209,23 +216,24 @@ proc connectImpl(p: PubSubPeer) {.async.} =
   finally:
     # drop the connection, else we end up with ghost peers
     if p.dropConn != nil: p.dropConn(p)
+    debug "connectImpl $", p
 
 proc connect*(p: PubSubPeer) =
   asyncSpawn connectImpl(p)
 
 proc sendImpl(conn: Connection, encoded: seq[byte]): Future[void] {.raises: [Defect].} =
-  trace "sending encoded msgs to peer", conn, encoded = shortLog(encoded)
+  debug "sending encoded msgs to peer", conn, encoded = shortLog(encoded)
 
   let fut = conn.writeLp(encoded) # Avoid copying `encoded` into future
   proc sendWaiter(): Future[void] {.async.} =
     try:
       await fut
-      trace "sent pubsub message to remote", conn
+      debug "sent pubsub message to remote", conn
 
     except CatchableError as exc: # never cancelled
       # Because we detach the send call from the currently executing task using
       # asyncSpawn, no exceptions may leak out of it
-      trace "Unable to send to remote", conn, msg = exc.msg
+      debug "Unable to send to remote", conn, msg = exc.msg
       # Next time sendConn is used, it will be have its close flag set and thus
       # will be recycled
 

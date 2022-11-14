@@ -118,7 +118,7 @@ type
     anonymize*: bool                   ## if we omit fromPeer and seqno from RPC messages we send
     subscriptionValidator*: SubscriptionValidator # callback used to validate subscriptions
     topicsHigh*: int                  ## the maximum number of topics a peer is allowed to subscribe to
-    maxMessageSize*: int          ##\ 
+    maxMessageSize*: int          ##\
       ## the maximum raw message size we'll globally allow
       ## for finer tuning, check message size on topic validator
       ##
@@ -290,14 +290,16 @@ proc getOrCreatePeer*(
     return peer[]
 
   proc getConn(): Future[Connection] {.async.} =
+    debug "getConn", peerId
     return await p.switch.dial(peerId, protos)
 
   proc dropConn(peer: PubSubPeer) =
+    debug "dropConn", peer
     proc dropConnAsync(peer: PubSubPeer) {.async.} =
       try:
         await p.switch.disconnect(peer.peerId)
       except CatchableError as exc: # never cancelled
-        trace "Failed to close connection", peer, error = exc.name, msg = exc.msg
+        debug "Failed to close connection", peer, error = exc.name, msg = exc.msg
     asyncSpawn dropConnAsync(peer)
 
   proc onEvent(peer: PubSubPeer, event: PubSubPeerEvent) {.gcsafe.} =
@@ -315,6 +317,7 @@ proc getOrCreatePeer*(
   # metrics
   libp2p_pubsub_peers.set(p.peers.len.int64)
 
+  debug "Connecting pubSubPeer from pubsub.nim", peerId, pubSubPeer
   pubSubPeer.connect()
 
   return pubSubPeer
@@ -376,12 +379,14 @@ method handleConn*(p: PubSub,
 
   try:
     peer.handler = handler
+    debug "pubsub peer handler starting", conn
     await peer.handle(conn) # spawn peer read loop
-    trace "pubsub peer handler ended", conn
+    debug "pubsub peer handler ended", conn
   except CancelledError as exc:
+    debug "cancelled ocurred in pubsub handle", exc = exc.msg, conn
     raise exc
   except CatchableError as exc:
-    trace "exception ocurred in pubsub handle", exc = exc.msg, conn
+    debug "exception ocurred in pubsub handle", exc = exc.msg, conn
   finally:
     await conn.closeWithEOF()
 
